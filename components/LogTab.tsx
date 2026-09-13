@@ -1,4 +1,4 @@
-"use client";
+use client";
 
 import { useMemo, useState } from "react";
 import { Blueprint } from "@/components/Blueprint";
@@ -389,10 +389,9 @@ export function LogTab() {
               type="button"
               className="btn-secondary"
               onClick={() => {
-                if (!mealLabel.trim()) return;
                 addMealEntry({
                   date,
-                  label: mealLabel.trim(),
+                  label: mealLabel.trim() || "식사",
                   protein: Number(mealP) || 0,
                   kcal: Number(mealK) || 0,
                 });
@@ -404,6 +403,9 @@ export function LogTab() {
               식사＋
             </button>
           </div>
+          <p className="text-[11px] text-muted">
+            이름이 비어 있으면 「식사」로 추가됩니다. g·kcal는 넣은 뒤에도 고칠 수 있습니다.
+          </p>
         </Blueprint>
       </section>
 
