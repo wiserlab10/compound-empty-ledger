@@ -328,7 +328,7 @@ export function CalendarTab() {
         <Blueprint>
           {pending.length === 0 ? (
             <p className="text-muted text-[13px] px-3 py-4">
-              대기 없음. 작업을 만들고 슬롯을 탭하거나 끄어다 놓으세요. 날짜를 바꿜도 저장됩니다.
+              대기 없음. 작업을 만들고 슬롯을 탭하거나 끌어다 놓으세요. 날짜를 바꾸어도 저장됩니다.
             </p>
           ) : (
             pending.map((t) => (
