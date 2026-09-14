@@ -12,6 +12,8 @@ export interface DayTask {
   title: string;
   area: AreaId;
   minutes: Minutes;
+  /** Exclusive end, minutes from midnight. Duration = endMinutes − minutes. */
+  endMinutes: Minutes;
   date: string;
   done: boolean;
   recurring: boolean;
@@ -25,6 +27,7 @@ export interface RecurringRule {
   title: string;
   area: AreaId;
   minutes: Minutes;
+  endMinutes: Minutes;
   /** Monday=0 … Sunday=6 */
   dows: number[];
 }
@@ -111,7 +114,7 @@ export interface LogState {
 }
 
 export interface AppState {
-  version: 5;
+  version: 6;
   seededDate: string;
   tasks: DayTask[];
   recurring: RecurringRule[];
