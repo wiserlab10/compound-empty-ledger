@@ -1,24 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
-
-const barlow = Barlow({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-barlow",
-  display: "swap",
-});
-
-const condensed = Barlow_Condensed({
-  subsets: ["latin"],
-  weight: ["600"],
-  variable: "--font-barlow-condensed",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Compound",
-  description: "서울대 3학년 · Wiserlab 파운더를 위한 개인 OS",
+  description: "오늘 · 캘린더 · 프로젝트 · 기록을 한곳에 모은 개인 OS",
   applicationName: "Compound",
   manifest: "/manifest.json",
   appleWebApp: {
@@ -50,7 +35,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#5980a6",
+  themeColor: "#F2F2F7",
 };
 
 export default function RootLayout({
@@ -60,9 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`${barlow.variable} ${condensed.variable} antialiased`}>
-        {children}
-      </body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
