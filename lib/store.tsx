@@ -607,10 +607,12 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteTrack = useCallback((trackId: TrackId) => {
-    setState((prev) => ({
-      ...prev,
-      projects: prev.projects.filter((tr) => tr.id !== trackId),
-    }));
+    const id = String(trackId);
+    setState((prev) => {
+      const next = prev.projects.filter((tr) => String(tr.id) !== id);
+      if (next.length === prev.projects.length) return prev;
+      return { ...prev, projects: next };
+    });
   }, []);
 
   const deleteSubproject = useCallback((trackId: TrackId, subId: string) => {
