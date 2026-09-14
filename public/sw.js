@@ -1,4 +1,4 @@
-const CACHE = "compound-v6";
+const CACHE = "compound-v7";
 const PRECACHE = [
   "/",
   "/manifest.json",
