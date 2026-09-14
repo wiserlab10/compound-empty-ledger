@@ -1,8 +1,18 @@
-"use client";
+'use client';
 
 import { useEffect, useMemo, useState } from "react";
 import { Blueprint } from "@/components/Blueprint";
-import { addDays, formatClock, formatTime, nowMinutes, todayISO } from "@/lib/dates";
+import {
+  addDays,
+  endMinutesOf,
+  formatClock,
+  formatRange,
+  formatTime,
+  normalizeRange,
+  nowMinutes,
+  parseTimeInput,
+  todayISO,
+} from "@/lib/dates";
 import { useCompound } from "@/lib/store";
 import { AREA_MAP, AREAS, type AreaId } from "@/lib/types";
 import type { PlannedTask } from "@/lib/store";
@@ -43,6 +53,7 @@ export function TodayTab() {
   const [note, setNote] = useState("");
   const [area, setArea] = useState<AreaId>("wiser");
   const [time, setTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("10:00");
   const [rec, setRec] = useState(false);
   const [gTitle, setGTitle] = useState("");
   const [gArea, setGArea] = useState<AreaId>("invest");
@@ -80,7 +91,7 @@ export function TodayTab() {
   const remaining = useMemo(() => {
     if (!current) return 0;
     const next = plan[current.index + 1];
-    const end = next ? next.minutes : current.task.minutes + 90;
+    const end = next ? next.minutes : endMinutesOf(current.task);
     const ref = isToday ? mins : current.task.minutes;
     return Math.max(0, end - ref);
   }, [current, plan, mins, isToday]);
@@ -94,8 +105,8 @@ export function TodayTab() {
   function submitAdd() {
     const trimmed = title.trim();
     if (!trimmed) return;
-    const [h, m] = time.split(":").map(Number);
-    addTodayTask(trimmed, area, h * 60 + (m || 0), rec, note);
+    const range = normalizeRange(parseTimeInput(time), parseTimeInput(endTime));
+    addTodayTask(trimmed, area, range.start, rec, note, range.end);
     setTitle("");
     setNote("");
     setAdding(false);
@@ -242,8 +253,8 @@ export function TodayTab() {
                   <button type="button" onClick={() => toggleDone(t.id, selectedDate)}>
                     <span className={`check ${t.done ? "on" : ""}`}>{t.done ? "✓" : ""}</span>
                   </button>
-                  <span className="heading-display text-[15px] w-[46px] shrink-0 text-muted pt-0.5">
-                    {formatTime(t.minutes)}
+                  <span className="heading-display text-[13px] w-[72px] shrink-0 text-muted pt-0.5">
+                    {formatRange(t.minutes, endMinutesOf(t))}
                   </span>
                   <span className="flex-1 min-w-0">
                     {editingId === t.id && !t.virtual ? (
@@ -301,15 +312,22 @@ export function TodayTab() {
             <p className="section-label">Quick add</p>
             <input className="input" placeholder="작업 제목" value={title} onChange={(e) => setTitle(e.target.value)} />
             <input className="input" placeholder="메모 (선택)" value={note} onChange={(e) => setNote(e.target.value)} />
+            <select className="input" value={area} onChange={(e) => setArea(e.target.value as AreaId)}>
+              {AREAS.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.letter} · {a.label}
+                </option>
+              ))}
+            </select>
             <div className="grid grid-cols-2 gap-2">
-              <select className="input" value={area} onChange={(e) => setArea(e.target.value as AreaId)}>
-                {AREAS.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.letter} · {a.label}
-                  </option>
-                ))}
-              </select>
-              <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+              <label className="text-[12px]">
+                시작 시간
+                <input className="input mt-1" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+              </label>
+              <label className="text-[12px]">
+                끝 시간
+                <input className="input mt-1" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+              </label>
             </div>
             <label className="text-[12px] flex items-center gap-2">
               <input type="checkbox" checked={rec} onChange={(e) => setRec(e.target.checked)} />
