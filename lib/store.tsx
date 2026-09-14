@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   createContext,
@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { mondayIndex, uid } from "./dates";
+import { endMinutesOf, mondayIndex, uid } from "./dates";
 import { createEmptyState } from "./seed";
 import type {
   AppState,
@@ -21,7 +21,14 @@ import type {
   WorkoutSet,
 } from "./types";
 
-export const STORAGE_KEY = "compound.ledger.v5";
+export const STORAGE_KEY = "compound.ledger.v6";
+const PREV_KEYS = [
+  "compound.ledger.v1",
+  "compound.ledger.v2",
+  "compound.ledger.v3",
+  "compound.ledger.v4",
+  "compound.ledger.v5",
+] as const;
 
 export interface PlannedTask extends DayTask {
   virtual?: boolean;
@@ -43,17 +50,25 @@ type StoreValue = {
     minutes: number,
     recurring: boolean,
     note?: string,
+    endMinutes?: number,
+  ) => void;
+  addCalendarPlan: (
+    title: string,
+    area: AreaId,
+    minutes: number,
+    endMinutes: number,
+    recurId?: string,
   ) => void;
   deleteTask: (id: string) => void;
   updateTask: (
     id: string,
-    patch: Partial<Pick<DayTask, "title" | "note" | "area" | "minutes">>,
+    patch: Partial<Pick<DayTask, "title" | "note" | "area" | "minutes" | "endMinutes">>,
   ) => void;
   updateTaskNote: (id: string, note: string) => void;
   toggleGoalTick: (goalId: string, index: number) => void;
   addWeeklyGoal: (title: string, area: AreaId, target: number) => void;
   deleteWeeklyGoal: (goalId: string) => void;
-  assignPending: (taskId: string, date: string, minutes: number) => void;
+  assignPending: (taskId: string, date: string, minutes: number, endMinutes?: number) => void;
   unassign: (task: PlannedTask, date: string) => void;
   toggleRecurringSlot: (task: PlannedTask, date: string) => void;
   toggleDowRecurring: (dow: number) => void;
@@ -93,20 +108,55 @@ type StoreValue = {
 
 const StoreContext = createContext<StoreValue | null>(null);
 
+function withEnd(task: DayTask): DayTask {
+  return {
+    ...task,
+    endMinutes:
+      !task.pending && task.endMinutes && task.endMinutes > task.minutes
+        ? task.endMinutes
+        : task.pending
+          ? task.endMinutes || 0
+          : endMinutesOf(task),
+  };
+}
+
+function migrateState(parsed: {
+  version?: number;
+  tasks?: DayTask[];
+  recurring?: AppState["recurring"];
+  hiddenRecurring?: string[];
+  weeklyGoals?: AppState["weeklyGoals"];
+  projects?: AppState["projects"];
+  log?: AppState["log"];
+  recurDowEnabled?: boolean[];
+  seededDate?: string;
+}): AppState | null {
+  if (!parsed || !Array.isArray(parsed.tasks) || !parsed.log?.workouts) return null;
+  if (parsed.version !== 5 && parsed.version !== 6) return null;
+  const base = createEmptyState(parsed.seededDate);
+  return {
+    ...base,
+    ...parsed,
+    version: 6,
+    tasks: parsed.tasks.map(withEnd),
+    recurring: (parsed.recurring ?? []).map((rule) => ({
+      ...rule,
+      endMinutes: endMinutesOf(rule),
+    })),
+  };
+}
+
 function loadState(): AppState {
   if (typeof window === "undefined") return createEmptyState();
   try {
-    window.localStorage.removeItem("compound.ledger.v1");
-    window.localStorage.removeItem("compound.ledger.v2");
-    window.localStorage.removeItem("compound.ledger.v3");
-    window.localStorage.removeItem("compound.ledger.v4");
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return createEmptyState();
-    const parsed = JSON.parse(raw) as AppState;
-    if (!parsed || parsed.version !== 5 || !Array.isArray(parsed.tasks) || !parsed.log?.workouts) {
-      return createEmptyState();
+    const raw =
+      window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem("compound.ledger.v5");
+    for (const key of PREV_KEYS) {
+      if (key !== "compound.ledger.v5") window.localStorage.removeItem(key);
     }
-    return parsed;
+    if (!raw) return createEmptyState();
+    const next = migrateState(JSON.parse(raw) as AppState);
+    return next ?? createEmptyState();
   } catch {
     return createEmptyState();
   }
@@ -147,6 +197,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
             title: rule.title,
             area: rule.area,
             minutes: rule.minutes,
+            endMinutes: endMinutesOf(rule),
             date,
             done: false,
             recurring: true,
@@ -187,6 +238,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
               title: rule.title,
               area: rule.area,
               minutes: rule.minutes,
+              endMinutes: endMinutesOf(rule),
               date,
               done: true,
               recurring: true,
@@ -201,13 +253,22 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addTodayTask = useCallback(
-    (title: string, area: AreaId, minutes: number, recurring: boolean, note?: string) => {
+    (
+      title: string,
+      area: AreaId,
+      minutes: number,
+      recurring: boolean,
+      note?: string,
+      endMinutes?: number,
+    ) => {
       setState((prev) => {
+        const end = endMinutes && endMinutes > minutes ? endMinutes : minutes + 60;
         const task: DayTask = {
           id: uid("t"),
           title,
           area,
           minutes,
+          endMinutes: end,
           date: selectedDate,
           done: false,
           recurring,
@@ -220,10 +281,37 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
           task.recurId = rid;
           recurringRules = [
             ...prev.recurring,
-            { id: rid, title, area, minutes, dows: [mondayIndex(selectedDate)] },
+            { id: rid, title, area, minutes, endMinutes: end, dows: [mondayIndex(selectedDate)] },
           ];
         }
         return { ...prev, tasks: [...prev.tasks, task], recurring: recurringRules };
+      });
+    },
+    [selectedDate],
+  );
+
+  const addCalendarPlan = useCallback(
+    (title: string, area: AreaId, minutes: number, endMinutes: number, recurId?: string) => {
+      setState((prev) => {
+        const end = endMinutes > minutes ? endMinutes : minutes + 30;
+        return {
+          ...prev,
+          tasks: [
+            ...prev.tasks,
+            {
+              id: uid("t"),
+              title,
+              area,
+              minutes,
+              endMinutes: end,
+              date: selectedDate,
+              done: false,
+              recurring: Boolean(recurId),
+              recurId,
+              pending: false,
+            },
+          ],
+        };
       });
     },
     [selectedDate],
@@ -234,11 +322,27 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateTask = useCallback(
-    (id: string, patch: Partial<Pick<DayTask, "title" | "note" | "area" | "minutes">>) => {
-      setState((prev) => ({
-        ...prev,
-        tasks: prev.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)),
-      }));
+    (id: string, patch: Partial<Pick<DayTask, "title" | "note" | "area" | "minutes" | "endMinutes">>) => {
+      setState((prev) => {
+        const current = prev.tasks.find((t) => t.id === id);
+        const tasks = prev.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t));
+        if (!current?.recurId) return { ...prev, tasks };
+        return {
+          ...prev,
+          tasks,
+          recurring: prev.recurring.map((r) =>
+            r.id !== current.recurId
+              ? r
+              : {
+                  ...r,
+                  title: patch.title ?? r.title,
+                  area: patch.area ?? r.area,
+                  minutes: patch.minutes ?? r.minutes,
+                  endMinutes: patch.endMinutes ?? r.endMinutes,
+                },
+          ),
+        };
+      });
     },
     [],
   );
@@ -282,14 +386,26 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
-  const assignPending = useCallback((taskId: string, date: string, minutes: number) => {
-    setState((prev) => ({
-      ...prev,
-      tasks: prev.tasks.map((t) =>
-        t.id === taskId ? { ...t, pending: false, date, minutes, done: false } : t,
-      ),
-    }));
-  }, []);
+  const assignPending = useCallback(
+    (taskId: string, date: string, minutes: number, endMinutes?: number) => {
+      setState((prev) => ({
+        ...prev,
+        tasks: prev.tasks.map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                pending: false,
+                date,
+                minutes,
+                endMinutes: endMinutes && endMinutes > minutes ? endMinutes : minutes + 30,
+                done: false,
+              }
+            : t,
+        ),
+      }));
+    },
+    [],
+  );
 
   const unassign = useCallback((task: PlannedTask, date: string) => {
     setState((prev) => {
@@ -302,7 +418,9 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
       return {
         ...prev,
         tasks: prev.tasks.map((t) =>
-          t.id === task.id ? { ...t, pending: true, date: "", minutes: 0, done: false } : t,
+          t.id === task.id
+            ? { ...t, pending: true, date: "", minutes: 0, endMinutes: 0, done: false }
+            : t,
         ),
       };
     });
@@ -329,7 +447,14 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         recurring: [
           ...prev.recurring,
-          { id: rid, title: task.title, area: task.area, minutes: task.minutes, dows: [dow] },
+          {
+            id: rid,
+            title: task.title,
+            area: task.area,
+            minutes: task.minutes,
+            endMinutes: endMinutesOf(task),
+            dows: [dow],
+          },
         ],
         tasks: prev.tasks.map((t) =>
           t.id === task.id ? { ...t, recurring: true, recurId: rid } : t,
@@ -355,6 +480,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
           title,
           area,
           minutes: 0,
+          endMinutes: 0,
           date: "",
           done: false,
           recurring: false,
@@ -670,6 +796,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
       pending,
       toggleDone,
       addTodayTask,
+      addCalendarPlan,
       deleteTask,
       updateTask,
       updateTaskNote,
@@ -722,6 +849,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
       pending,
       toggleDone,
       addTodayTask,
+      addCalendarPlan,
       deleteTask,
       updateTask,
       updateTaskNote,
