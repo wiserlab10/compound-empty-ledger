@@ -1,12 +1,13 @@
 'use client';
 
+import { IconCalendar, IconFolder, IconHeart, IconHome } from "@/components/Icons";
 import type { TabId } from "@/lib/types";
 
-const TABS: { id: TabId; name: string }[] = [
-  { id: "today", name: "오늘" },
-  { id: "calendar", name: "캘린더" },
-  { id: "projects", name: "프로젝트" },
-  { id: "log", name: "기록" },
+const TABS: { id: TabId; name: string; Icon: typeof IconHome }[] = [
+  { id: "today", name: "오늘", Icon: IconHome },
+  { id: "calendar", name: "캘린더", Icon: IconCalendar },
+  { id: "projects", name: "프로젝트", Icon: IconFolder },
+  { id: "log", name: "기록", Icon: IconHeart },
 ];
 
 export function BottomNav({
@@ -27,6 +28,7 @@ export function BottomNav({
           aria-current={tab === t.id ? "page" : undefined}
           onClick={() => onChange(t.id)}
         >
+          <t.Icon />
           <span className="nav-name">{t.name}</span>
         </button>
       ))}
