@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { BottomNav } from "@/components/BottomNav";
 import { CalendarTab } from "@/components/CalendarTab";
@@ -27,11 +27,11 @@ function Shell() {
         <div className="phone">
           <div className="brand-bar">
             <span className="brand">Compound</span>
-            <span className="brand-meta">Loading</span>
+            <span className="brand-meta">불러오는 중</span>
           </div>
           <PwaRegister />
           <main className="scroll">
-            <p className="section-label mt-8">Hydrating ledger…</p>
+            <p className="text-muted mt-8 text-[15px]">원장을 여는 중</p>
           </main>
         </div>
       </div>
