@@ -135,20 +135,20 @@ export function LogTab() {
     .slice(0, 7);
 
   return (
-    <div className="flex flex-col gap-4 pt-1">
+    <div className="flex flex-col gap-3 pt-2">
       {node}
-      <header className="flex items-end justify-between gap-2">
+      <header className="flex items-start justify-between gap-2">
         <div>
-          <h1 className="page-title">기록</h1>
-          <p className="text-muted text-[13px] mt-1">{date}</p>
+          <h1 className="large-title">기록</h1>
+          <p className="subhead">{date}</p>
         </div>
-        <div className="flex gap-1">
-          <button type="button" className="btn-secondary" onClick={download}>
+        <div className="flex gap-1 pt-1">
+          <button type="button" className="text-link" onClick={download}>
             보내기
           </button>
           <button
             type="button"
-            className="btn-secondary"
+            className="text-link"
             onClick={() => {
               if (window.confirm("모든 원장을 지우고 빈 상태로 돌립니다.")) resetLedger();
             }}
@@ -160,7 +160,7 @@ export function LogTab() {
 
       <section>
         <div className="flex items-end justify-between mb-2">
-          <p className="text-[15px] font-medium">운동</p>
+          <p className="section-title" style={{ marginTop: 8 }}>운동</p>
           <p className="text-[13px] text-muted">
             {dayWorkouts.length === 0 ? "—" : `Σ ${formatVolume(sessVol)}`}
           </p>
@@ -293,7 +293,7 @@ export function LogTab() {
       </section>
 
       <section>
-        <p className="text-[15px] font-medium mb-2">식사</p>
+        <p className="section-title">식사</p>
         <div className="card p-3 flex flex-col gap-3">
           {meals.length === 0 && protein === 0 && kcal === 0 ? (
             <p className="text-[13px] text-muted">식사 기록이 없습니다.</p>
@@ -420,7 +420,7 @@ export function LogTab() {
       </section>
 
       <section>
-        <p className="text-[15px] font-medium mb-2">체중</p>
+        <p className="section-title">체중</p>
         <div className="card p-3">
           <div className="flex gap-2 mb-2">
             <input
@@ -446,7 +446,7 @@ export function LogTab() {
           ) : (
             <>
               <div className="flex items-end justify-between">
-                <p className="page-title">{latestWt.kg.toFixed(1)}</p>
+                <p className="large-title">{latestWt.kg.toFixed(1)}</p>
                 <p className="text-muted text-[12px] text-right">
                   {prevWt
                     ? `직전 대비 ${latestWt.kg - prevWt.kg >= 0 ? "+" : ""}${(latestWt.kg - prevWt.kg).toFixed(1)}`
@@ -501,13 +501,13 @@ export function LogTab() {
       </section>
 
       <section>
-        <p className="text-[15px] font-medium mb-2">수면</p>
+        <p className="section-title">수면</p>
         <div className="card p-3">
           {!sleep ? (
             <p className="text-muted text-[13px] mb-2">오늘 수면 기록이 없습니다.</p>
           ) : (
             <div className="flex items-end justify-between">
-              <p className="page-title">{sleep.hours.toFixed(1)}h</p>
+              <p className="large-title">{sleep.hours.toFixed(1)}h</p>
               <p className="text-muted text-[12px] text-right">
                 {log.sleepTarget > 0 ? `연속 ${sleepStreak}일 · 목표 ${log.sleepTarget}h` : "목표 없음"}
                 <br />
@@ -577,7 +577,7 @@ export function LogTab() {
       </section>
 
       <section>
-        <p className="text-[15px] font-medium mb-2">독서</p>
+        <p className="section-title">독서</p>
         <div className="card p-3">
           <div className="grid grid-cols-2 gap-2">
             <input
@@ -604,7 +604,7 @@ export function LogTab() {
           >
             책 저장
           </button>
-          <p className="page-title mt-3">{pagesToday}p</p>
+          <p className="large-title mt-3">{pagesToday}p</p>
           <p className="text-muted text-[12px]">
             오늘 {pagesToday}p · 누적 {pagesTotal}p
             {log.book ? ` · ${log.book}` : ""}
@@ -659,7 +659,7 @@ export function LogTab() {
       </section>
 
       <section>
-        <p className="text-[15px] font-medium mb-2">한 줄</p>
+        <p className="section-title">한 줄</p>
         <textarea
           className="input"
           placeholder="오늘 한 줄"
@@ -746,7 +746,7 @@ function Sparkline({ values }: { values: number[] }) {
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full mt-2" aria-hidden>
       <polyline
         fill="none"
-        stroke="#5980a6"
+        stroke="#007aff"
         strokeWidth="1.6"
         points={values
           .map((v, i) => {
