@@ -1,7 +1,7 @@
 # Compound
 
 오늘 · 캘린더 · 프로젝트 · 기록을 한곳에 모은 한국어 개인 OS.  
-정보 구조는 이 네 탭을 유지합니다. 홈/할일/습관/언젠가로 바꾸지 않습니다.
+정보 구조는 이 네 탭을 유지합니다. 홈/할일/습관/언제가로 바꾸지 않습니다.
 
 시각 언어는 iOS(SF 시스템 폰트, `#F2F2F7`, 라운드 카드, 탭바, 시트)입니다.
 
@@ -19,6 +19,33 @@
 시간은 한국 UI 기준 **24시간만** 표시합니다.
 
 상태는 `localStorage` (`compound.ledger.v6`)에 저장됩니다. v5 원장은 시작·끝 시간으로 옮깁니다.
+
+로그인하면 같은 원장을 Supabase `compound_ledgers`에 옮c립니다. 로그아웃해도 기기의 로컬 원장은 그대로 쓸 수 있습니다.
+
+## 계정 · 동기화
+
+- 로그인하지 않아도 앱은 동작합니다. 배너: 「로그인하면 기기 간 동기화」
+- iOS 홈 화면(PWA)에서는 **이메일 + 비밀번호**가 기본입니다. 매직 링크는 같은 브라우저에서 열어야 세션이 유지됩니다.
+- 첫 로그인: 이 기기의 localStorage 원장을 클라우드에 옮c립니다.
+- 이후: 서버 `updated_at`이 더 新시면 서버 원장을 쓰고, 아니면 로컬을 옮c립니다. 변경은 0.8초 디바운스 후 upsert.
+
+### Supabase Auth URL (대시보드에 붙여넣기)
+
+Authentication → URL Configuration:
+
+- Site URL: `https://compound-two-lyart.vercel.app`
+- Redirect URLs:
+  - `https://compound-two-lyart.vercel.app/**`
+  - `https://compound-two-lyart.vercel.app/auth/callback`
+  - `http://127.0.0.1:43123/**`
+  - `http://127.0.0.1:43123/auth/callback`
+
+프로젝트는 기존 `rush-hour-shift`입니다. `rhs_rooms`는 건드리지 않습니다.
+
+Vercel 환경 변수:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (legacy anon JWT)
 
 ## 로컬 실행
 

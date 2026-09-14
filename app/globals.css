@@ -402,6 +402,22 @@ textarea.input {
   font-weight: 500;
 }
 
+.auth-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 16px 0;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--color-fill);
+  font-size: 13px;
+}
+
+.auth-bar .text-link {
+  min-height: 36px;
+}
+
 .install-bar {
   display: flex;
   align-items: center;
