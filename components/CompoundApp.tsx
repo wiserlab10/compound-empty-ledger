@@ -1,11 +1,13 @@
 'use client';
 
+import { AuthBar } from "@/components/AuthBar";
 import { BottomNav } from "@/components/BottomNav";
 import { CalendarTab } from "@/components/CalendarTab";
 import { LogTab } from "@/components/LogTab";
 import { ProjectsTab } from "@/components/ProjectsTab";
 import { PwaRegister } from "@/components/PwaRegister";
 import { TodayTab } from "@/components/TodayTab";
+import { AuthProvider } from "@/lib/auth";
 import { CompoundProvider, useCompound } from "@/lib/store";
 
 function Shell() {
@@ -29,6 +31,7 @@ function Shell() {
     <div className="page-desk">
       <div className="phone">
         <PwaRegister />
+        <AuthBar />
         <main className="scroll">
           {tab === "today" ? <TodayTab /> : null}
           {tab === "calendar" ? <CalendarTab /> : null}
@@ -43,8 +46,10 @@ function Shell() {
 
 export function CompoundApp() {
   return (
-    <CompoundProvider>
-      <Shell />
-    </CompoundProvider>
+    <AuthProvider>
+      <CompoundProvider>
+        <Shell />
+      </CompoundProvider>
+    </AuthProvider>
   );
 }
