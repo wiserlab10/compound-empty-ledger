@@ -426,6 +426,13 @@ textarea.input {
   border-bottom: 1px dashed var(--neutral-300);
 }
 
+.plan-span {
+  background: var(--accent-100);
+  border: 1px solid var(--accent-200);
+  padding: 4px 6px;
+  margin: 2px 0;
+}
+
 .slot.drop {
   background: var(--accent-100);
   outline: 1px dashed var(--color-accent);
