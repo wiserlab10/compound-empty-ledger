@@ -4,7 +4,7 @@ import { todayISO } from "./dates";
 /** First open is a blank ledger. No demo tasks, goals, tracks, or log rows. */
 export function createEmptyState(date = todayISO()): AppState {
   return {
-    version: 5,
+    version: 6,
     seededDate: date,
     tasks: [],
     recurring: [],
@@ -35,6 +35,7 @@ export function newPending(title: string, area: DayTask["area"]): DayTask {
     title,
     area,
     minutes: 0,
+    endMinutes: 0,
     date: "",
     done: false,
     recurring: false,
