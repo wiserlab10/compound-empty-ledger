@@ -65,30 +65,15 @@ function plus(x, y, n, barRatio, thickRatio) {
 }
 
 function mark(x, y, n) {
-  const bg = [89, 128, 166, 255];
-  const ink = [242, 242, 243, 255];
-  const pad = n * 0.18;
-  const inset = n * 0.28;
-  const t = Math.max(2, Math.round(n * 0.045));
-  const inFrame = x >= pad && x < n - pad && y >= pad && y < n - pad;
-  if (!inFrame) return bg;
-  const nearL = x < pad + t;
-  const nearR = x >= n - pad - t;
-  const nearT = y < pad + t;
-  const nearB = y >= n - pad - t;
-  const corner =
-    (x < inset && y < inset && (nearL || nearT)) ||
-    (x >= n - inset && y < inset && (nearR || nearT)) ||
-    (x < inset && y >= n - inset && (nearL || nearB)) ||
-    (x >= n - inset && y >= n - inset && (nearR || nearB));
-  if (corner) return ink;
+  const bg = [242, 242, 247, 255];
+  const ink = [0, 122, 255, 255];
   if (plus(x, y, n, 0.18, 0.07)) return ink;
   return bg;
 }
 
 function maskable(x, y, n) {
-  const bg = [89, 128, 166, 255];
-  const ink = [242, 242, 243, 255];
+  const bg = [0, 122, 255, 255];
+  const ink = [255, 255, 255, 255];
   if (plus(x, y, n, 0.14, 0.055)) return ink;
   return bg;
 }

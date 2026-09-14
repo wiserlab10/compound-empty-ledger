@@ -1,27 +1,29 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DeleteConfirm, EmptyState, useFlash } from "@/components/Mobile";
+import { IconPlus } from "@/components/Icons";
+import { DeleteConfirm, EmptyState, Sheet, useFlash } from "@/components/Mobile";
 import {
   WEEKDAYS_KR,
   addDays,
   addMonths,
+  daysInMonth,
   durationLabel,
   endMinutesOf,
   formatKoreanDate,
   formatRange,
+  mondayIndex,
   monthLabel,
   normalizeRange,
   parseISODate,
   parseTimeInput,
   startOfMonth,
   startOfWeekMonday,
-  daysInMonth,
-  mondayIndex,
+  todayISO,
   toTimeInput,
 } from "@/lib/dates";
 import { useCompound, type PlannedTask } from "@/lib/store";
-import type { AreaId } from "@/lib/types";
+import { AREA_MAP, type AreaId } from "@/lib/types";
 
 type Draft = {
   id?: string;
@@ -59,16 +61,16 @@ export function CalendarTab() {
   const { flash, node } = useFlash();
   const titleRef = useRef<HTMLInputElement>(null);
 
-  const [mode, setMode] = useState<"week" | "month">("week");
-  const [formOpen, setFormOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => emptyDraft());
 
   const plan = planFor(selectedDate);
   const range = normalizeRange(parseTimeInput(draft.start), parseTimeInput(draft.end));
+  const today = todayISO();
 
   useEffect(() => {
-    if (formOpen) titleRef.current?.focus();
-  }, [formOpen]);
+    if (sheetOpen) titleRef.current?.focus();
+  }, [sheetOpen]);
 
   const week = useMemo(() => {
     const start = startOfWeekMonday(selectedDate);
@@ -88,19 +90,19 @@ export function CalendarTab() {
     return cells;
   }, [selectedDate]);
 
-  function openNew(startMin = 9 * 60, endMin = 10 * 60) {
-    setDraft(emptyDraft(startMin, endMin));
-    setFormOpen(true);
+  function openNew() {
+    setDraft(emptyDraft(9 * 60, 10 * 60));
+    setSheetOpen(true);
   }
 
   function openEdit(task: PlannedTask) {
     setDraft(draftFromTask(task));
-    setFormOpen(true);
+    setSheetOpen(true);
   }
 
   function openPending(id: string, title: string) {
     setDraft({ ...emptyDraft(), pendingId: id, title });
-    setFormOpen(true);
+    setSheetOpen(true);
   }
 
   function saveDraft() {
@@ -114,145 +116,136 @@ export function CalendarTab() {
       addCalendarPlan(title, "cls" as AreaId, range.start, range.end);
     }
     setDraft(emptyDraft(range.end, range.end + 60));
-    setFormOpen(false);
+    setSheetOpen(false);
     flash("저장됨");
   }
 
   return (
-    <div className="flex flex-col gap-3 pt-1">
+    <div className="pt-2">
       {node}
-      <header className="flex items-end justify-between">
+      <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="page-title">캘린더</h1>
-          <p className="text-muted text-[13px] mt-1">{formatKoreanDate(selectedDate)}</p>
+          <h1 className="large-title">캘린더</h1>
+          <p className="subhead">{monthLabel(selectedDate).replace(".", "년 ")}월</p>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 pt-1">
           <button
             type="button"
-            className="btn-secondary"
-            style={mode === "week" ? { background: "var(--neutral-900)", color: "#fff" } : undefined}
-            onClick={() => setMode("week")}
+            className="btn-icon"
+            onClick={() => setSelectedDate(addMonths(selectedDate, -1))}
           >
-            주
+            ‹
           </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            style={mode === "month" ? { background: "var(--neutral-900)", color: "#fff" } : undefined}
-            onClick={() => setMode("month")}
-          >
-            월
+          <button type="button" className="btn-icon" onClick={() => setSelectedDate(addMonths(selectedDate, 1))}>
+            ›
+          </button>
+          <button type="button" className="btn-icon" aria-label="일정 추가" onClick={openNew}>
+            <IconPlus className="nav-icon" />
           </button>
         </div>
       </header>
 
-      <div className="flex items-center justify-between">
-        <p className="text-[15px] font-medium">{monthLabel(selectedDate)}</p>
-        <div className="flex gap-1">
-          <button
-            type="button"
-            className="btn-icon"
-            onClick={() =>
-              setSelectedDate(mode === "month" ? addMonths(selectedDate, -1) : addDays(selectedDate, -7))
-            }
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            className="btn-icon"
-            onClick={() =>
-              setSelectedDate(mode === "month" ? addMonths(selectedDate, 1) : addDays(selectedDate, 7))
-            }
-          >
-            ›
-          </button>
-        </div>
-      </div>
-
-      {mode === "week" ? (
-        <div className="grid grid-cols-7 gap-1">
-          {week.map((iso, i) => {
+      <div className="card mt-4 px-1 pb-2">
+        <div className="cal-grid">
+          {WEEKDAYS_KR.map((d) => (
+            <div key={d} className="cal-dow">
+              {d}
+            </div>
+          ))}
+          {monthGrid.map((iso, i) => {
+            if (!iso) return <div key={`e${i}`} />;
             const on = iso === selectedDate;
+            const isToday = iso === today;
             const count = planFor(iso).length;
             return (
               <button
                 key={iso}
                 type="button"
-                className="card text-center"
-                style={{
-                  minHeight: 64,
-                  background: on ? "var(--neutral-900)" : "#fff",
-                  color: on ? "#fff" : "inherit",
-                }}
+                className="cal-cell"
+                data-on={on}
+                data-today={isToday}
                 onClick={() => setSelectedDate(iso)}
               >
-                <div className="text-[12px] mt-1" style={{ color: on ? "#c9d6e3" : "var(--neutral-500)" }}>
-                  {WEEKDAYS_KR[i]}
-                </div>
-                <div className="text-[18px] font-semibold leading-none mt-1">
-                  {parseISODate(iso).getDate()}
-                </div>
-                <div className="text-[11px] mt-1 mb-1" style={{ color: on ? "#c9d6e3" : "var(--color-accent)" }}>
-                  {count ? `${count}` : "·"}
-                </div>
+                <span className="num">{parseISODate(iso).getDate()}</span>
+                {count ? <div className="cal-dot" /> : <div style={{ height: 7 }} />}
               </button>
             );
           })}
         </div>
-      ) : (
-        <div className="card p-2">
-          <div className="grid grid-cols-7 text-center">
-            {WEEKDAYS_KR.map((d) => (
-              <div key={d} className="text-[12px] text-muted py-1">
-                {d}
+      </div>
+
+      <div className="week-strip">
+        {week.map((iso, i) => {
+          const on = iso === selectedDate;
+          return (
+            <button key={iso} type="button" className="week-cell" data-on={on} onClick={() => setSelectedDate(iso)}>
+              <div className="text-[11px] font-semibold" style={{ opacity: 0.7 }}>
+                {WEEKDAYS_KR[i]}
               </div>
-            ))}
-            {monthGrid.map((iso, i) => {
-              if (!iso) return <div key={`e${i}`} />;
-              const on = iso === selectedDate;
-              const count = planFor(iso).length;
-              return (
-                <button
-                  key={iso}
-                  type="button"
-                  className="min-h-[44px] text-[14px] relative"
-                  style={{
-                    background: on ? "var(--neutral-900)" : "transparent",
-                    color: on ? "#fff" : "inherit",
-                  }}
-                  onClick={() => setSelectedDate(iso)}
-                >
-                  {parseISODate(iso).getDate()}
-                  {count ? (
-                    <span
-                      className="block text-[10px]"
-                      style={{ color: on ? "#c9d6e3" : "var(--color-accent)" }}
-                    >
-                      {count}
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
+              <div className="text-[17px] font-semibold">{parseISODate(iso).getDate()}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="section-title" style={{ marginTop: 4 }}>
+        {formatKoreanDate(selectedDate)}
+      </p>
+
+      {pending.length > 0 ? (
+        <div className="card mb-3">
+          {pending.map((t) => (
+            <button key={t.id} type="button" className="row" onClick={() => openPending(t.id, t.title)}>
+              <span className={`area-dot ${t.area}`} />
+              <span className="text-[17px]">{t.title}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {plan.length === 0 ? (
+        <EmptyState text="이 날 일정이 없습니다." action="일정 추가" onAction={openNew} />
+      ) : (
+        <div className="card">
+          {plan.map((t) => (
+            <div key={t.id} className="row">
+              <button
+                type="button"
+                className="hit"
+                aria-label={t.done ? "완료 취소" : "완료"}
+                onClick={() => toggleDone(t.id, selectedDate)}
+              >
+                <span className={`check ${t.done ? "on" : ""}`}>{t.done ? "✓" : ""}</span>
+              </button>
+              <button type="button" className="flex-1 min-w-0 text-left" onClick={() => openEdit(t)}>
+                <span className={`block text-[17px] ${t.done ? "line-through text-muted" : ""}`}>
+                  {t.title}
+                </span>
+                <span className="text-[13px] text-muted flex items-center gap-1.5 mt-0.5">
+                  <span className={`area-dot ${t.area}`} />
+                  {formatRange(t.minutes, endMinutesOf(t))} · {durationLabel(t.minutes, endMinutesOf(t))} ·{" "}
+                  {AREA_MAP[t.area].label}
+                </span>
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
-      {formOpen ? (
+      <Sheet open={sheetOpen} title={draft.id || draft.pendingId ? "일정 수정" : "새 일정"} onClose={() => setSheetOpen(false)}>
         <form
-          className="card p-3 flex flex-col gap-3"
+          className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
             saveDraft();
           }}
         >
           <label className="field-label">
-            {draft.id || draft.pendingId ? "일정 수정" : "일정"}
+            제목
             <input
               ref={titleRef}
               className="input mt-1"
-              placeholder="제목"
+              placeholder="일정 이름"
               value={draft.title}
               enterKeyHint="done"
               onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
@@ -284,81 +277,17 @@ export function CalendarTab() {
           <button type="submit" className="btn-primary">
             저장
           </button>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => {
-                setDraft(emptyDraft());
-                setFormOpen(false);
+          {draft.id ? (
+            <DeleteConfirm
+              onDelete={() => {
+                deleteTask(draft.id!);
+                setSheetOpen(false);
+                flash("삭제됨");
               }}
-            >
-              닫기
-            </button>
-            {draft.id ? (
-              <DeleteConfirm
-                onDelete={() => {
-                  deleteTask(draft.id!);
-                  setFormOpen(false);
-                  flash("삭제됨");
-                }}
-              />
-            ) : (
-              <span />
-            )}
-          </div>
+            />
+          ) : null}
         </form>
-      ) : null}
-
-      {pending.length > 0 ? (
-        <section>
-          <p className="text-[13px] text-muted mb-1">시간 없는 항목 · 탭해서 시간 넣기</p>
-          <div className="card overflow-hidden">
-            {pending.map((t) => (
-              <button key={t.id} type="button" className="row" onClick={() => openPending(t.id, t.title)}>
-                <span className="text-[16px]">{t.title}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {!formOpen && plan.length === 0 ? (
-        <EmptyState text="이 날 일정이 없습니다." action="＋ 일정 추가" onAction={() => openNew()} />
-      ) : null}
-
-      {plan.length > 0 ? (
-        <div className="card overflow-hidden">
-          {plan.map((t) => (
-            <div key={t.id} className="row">
-              <button
-                type="button"
-                className="hit"
-                aria-label={t.done ? "완료 취소" : "완료"}
-                onClick={() => toggleDone(t.id, selectedDate)}
-              >
-                <span className={`check ${t.done ? "on" : ""}`}>{t.done ? "✓" : ""}</span>
-              </button>
-              <button type="button" className="flex-1 min-w-0 text-left" onClick={() => openEdit(t)}>
-                <span className="block text-[13px] text-muted">
-                  {formatRange(t.minutes, endMinutesOf(t))}
-                </span>
-                <span className={`block text-[16px] ${t.done ? "line-through text-muted" : ""}`}>
-                  {t.title}
-                </span>
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {!formOpen && plan.length > 0 ? (
-        <div className="sticky-cta">
-          <button type="button" className="btn-primary" onClick={() => openNew()}>
-            ＋ 일정 추가
-          </button>
-        </div>
-      ) : null}
+      </Sheet>
     </div>
   );
 }
