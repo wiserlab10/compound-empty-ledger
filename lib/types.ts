@@ -130,13 +130,13 @@ export const AREAS: {
   letter: string;
   label: string;
 }[] = [
-  { id: "wiser", letter: "W", label: "Wiserlab" },
-  { id: "invest", letter: "I", label: "투자 리서치" },
-  { id: "body", letter: "B", label: "웨이트" },
-  { id: "food", letter: "F", label: "식사" },
-  { id: "sleep", letter: "S", label: "수면" },
-  { id: "read", letter: "R", label: "독서" },
-  { id: "cls", letter: "C", label: "수업·루틴" },
+  { id: "wiser", letter: "주", label: "주간" },
+  { id: "invest", letter: "투", label: "투자" },
+  { id: "body", letter: "운", label: "운동" },
+  { id: "food", letter: "식", label: "식사" },
+  { id: "sleep", letter: "수", label: "수면" },
+  { id: "read", letter: "독", label: "독서" },
+  { id: "cls", letter: "일", label: "일정" },
 ];
 
 export const AREA_MAP = Object.fromEntries(AREAS.map((a) => [a.id, a])) as Record<
