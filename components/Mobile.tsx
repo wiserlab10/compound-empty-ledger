@@ -50,6 +50,7 @@ export function DeleteConfirm({
     <button
       type="button"
       className="btn-secondary"
+      style={ask ? { color: "var(--color-danger)" } : undefined}
       onClick={() => {
         if (!ask) {
           setAsk(true);
@@ -99,6 +100,47 @@ export function SwipeRow({
         }}
         onTouchEnd={() => setX((v) => (v < -40 ? -80 : 0))}
       >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function Sheet({
+  open,
+  title,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <div className="sheet-root" role="dialog" aria-modal="true" aria-label={title}>
+      <button type="button" className="sheet-backdrop" aria-label="닫기" onClick={onClose} />
+      <div className="sheet">
+        <div className="sheet-handle" />
+        <div className="sheet-head">
+          <button type="button" className="text-link" onClick={onClose}>
+            닫기
+          </button>
+          <h2>{title}</h2>
+          <span className="text-link" style={{ visibility: "hidden" }}>
+            닫기
+          </span>
+        </div>
         {children}
       </div>
     </div>
