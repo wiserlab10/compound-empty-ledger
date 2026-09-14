@@ -34,6 +34,40 @@ export function formatTime(minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+export function parseTimeInput(value: string): number {
+  const [h, m] = value.split(":").map(Number);
+  if (!Number.isFinite(h)) return 9 * 60;
+  return Math.max(0, Math.min(24 * 60, h * 60 + (Number.isFinite(m) ? m : 0)));
+}
+
+export function toTimeInput(minutes: number): string {
+  return formatTime(Math.max(0, Math.min(23 * 60 + 59, minutes)));
+}
+
+export function normalizeRange(start: number, end: number): { start: number; end: number } {
+  const s = Math.max(0, Math.min(23 * 60 + 45, start));
+  const e = end > s ? Math.min(24 * 60, end) : Math.min(24 * 60, s + 30);
+  return { start: s, end: e };
+}
+
+export function endMinutesOf(task: { minutes: number; endMinutes?: number }): number {
+  if (task.endMinutes && task.endMinutes > task.minutes) return task.endMinutes;
+  return Math.min(24 * 60, task.minutes + 30);
+}
+
+export function formatRange(start: number, end: number): string {
+  return `${formatTime(start)}–${formatTime(end)}`;
+}
+
+export function durationLabel(start: number, end: number): string {
+  const d = Math.max(0, end - start);
+  const h = Math.floor(d / 60);
+  const m = d % 60;
+  if (h && m) return `${h}시간 ${m}분`;
+  if (h) return `${h}시간`;
+  return `${m}분`;
+}
+
 export function nowMinutes(now = new Date()): number {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: KST,
