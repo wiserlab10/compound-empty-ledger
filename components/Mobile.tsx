@@ -23,17 +23,22 @@ export function EmptyState({
   text,
   action,
   onAction,
+  children,
 }: {
   text: string;
-  action: string;
-  onAction: () => void;
+  action?: string;
+  onAction?: () => void;
+  children?: ReactNode;
 }) {
   return (
     <div className="empty card">
       <p>{text}</p>
-      <button type="button" className="btn-primary" onClick={onAction}>
-        {action}
-      </button>
+      {children}
+      {action && onAction ? (
+        <button type="button" className="btn-primary" onClick={onAction}>
+          {action}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -51,9 +56,15 @@ export function DeleteConfirm({
       type="button"
       className="btn-secondary"
       style={ask ? { color: "var(--color-danger)" } : undefined}
-      onClick={() => {
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (!ask) {
           setAsk(true);
+          return;
+        }
+        if (!window.confirm("정말 삭제할까요?")) {
+          setAsk(false);
           return;
         }
         onDelete();

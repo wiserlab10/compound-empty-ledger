@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IconPlus } from "@/components/Icons";
-import { DeleteConfirm, EmptyState, Sheet, SwipeRow, useFlash } from "@/components/Mobile";
+import { DeleteConfirm, Sheet, SwipeRow, useFlash } from "@/components/Mobile";
+import { TimeField } from "@/components/TimeField";
 import {
   addDays,
   endMinutesOf,
@@ -15,7 +16,7 @@ import {
   toTimeInput,
 } from "@/lib/dates";
 import { useCompound, type PlannedTask } from "@/lib/store";
-import { AREA_MAP } from "@/lib/types";
+import { AREAS, AREA_MAP, type AreaId } from "@/lib/types";
 
 function greeting(mins: number) {
   const h = mins / 60;
@@ -37,6 +38,8 @@ export function TodayTab() {
   } = useCompound();
   const { flash, node } = useFlash();
   const titleRef = useRef<HTMLInputElement>(null);
+  const emptyRef = useRef<HTMLInputElement>(null);
+  const quickRef = useRef<HTMLInputElement>(null);
 
   const today = todayISO();
   const isToday = selectedDate === today;
@@ -47,28 +50,52 @@ export function TodayTab() {
   const [sheet, setSheet] = useState<"add" | "edit" | null>(null);
   const [title, setTitle] = useState("");
   const [time, setTime] = useState("");
+  const [note, setNote] = useState("");
+  const [area, setArea] = useState<AreaId>("cls");
+  const [repeat, setRepeat] = useState<"none" | "weekly">("none");
+  const [advanced, setAdvanced] = useState(false);
   const [editing, setEditing] = useState<PlannedTask | null>(null);
 
   useEffect(() => {
     if (sheet) titleRef.current?.focus();
   }, [sheet]);
 
-  function openAdd() {
-    setEditing(null);
+  useEffect(() => {
+    if (plan.length === 0 && !sheet) emptyRef.current?.focus();
+  }, [plan.length, sheet, selectedDate]);
+
+  function resetComposer(focus?: HTMLInputElement | null) {
     setTitle("");
-    setTime(toTimeInput(nowMinutes()));
-    setSheet("add");
+    setTime("");
+    setNote("");
+    setArea("cls");
+    setRepeat("none");
+    setAdvanced(false);
+    requestAnimationFrame(() => focus?.focus());
+  }
+
+  function saveComposer() {
+    const trimmed = title.trim();
+    if (!trimmed) {
+      (emptyRef.current ?? quickRef.current ?? titleRef.current)?.focus();
+      return false;
+    }
+    const start = time ? parseTimeInput(time) : nowMinutes();
+    const range = normalizeRange(start, start + 60);
+    addTodayTask(trimmed, area, range.start, repeat === "weekly", note, range.end);
+    flash("추가됨");
+    return true;
   }
 
   function saveAdd() {
-    const trimmed = title.trim();
-    if (!trimmed) return;
-    const start = time ? parseTimeInput(time) : nowMinutes();
-    const range = normalizeRange(start, start + 60);
-    addTodayTask(trimmed, "cls", range.start, false, undefined, range.end);
-    setTitle("");
+    if (!saveComposer()) return;
+    resetComposer();
     setSheet(null);
-    flash("추가됨");
+  }
+
+  function saveInline(focus?: HTMLInputElement | null) {
+    if (!saveComposer()) return;
+    resetComposer(focus);
   }
 
   function openEdit(task: PlannedTask) {
@@ -76,6 +103,10 @@ export function TodayTab() {
     setEditing(task);
     setTitle(task.title);
     setTime(toTimeInput(task.minutes));
+    setNote(task.note ?? "");
+    setArea(task.area);
+    setRepeat(task.recurring ? "weekly" : "none");
+    setAdvanced(Boolean(task.note || task.recurring || task.area !== "cls"));
     setSheet("edit");
   }
 
@@ -85,11 +116,105 @@ export function TodayTab() {
     if (!trimmed) return;
     const start = time ? parseTimeInput(time) : editing.minutes;
     const range = normalizeRange(start, start + Math.max(30, endMinutesOf(editing) - editing.minutes));
-    updateTask(editing.id, { title: trimmed, minutes: range.start, endMinutes: range.end });
+    updateTask(editing.id, {
+      title: trimmed,
+      minutes: range.start,
+      endMinutes: range.end,
+      note: note.trim() || undefined,
+      area,
+    });
     setSheet(null);
     setEditing(null);
     flash("저장됨");
   }
+
+  const composerFields = (mode: "empty" | "quick" | "sheet") => {
+    const ref = mode === "empty" ? emptyRef : mode === "quick" ? quickRef : titleRef;
+    const submitLabel = mode === "empty" ? "첫 작업 추가" : "추가";
+    const isEdit = mode === "sheet" && sheet === "edit";
+    return (
+      <>
+        <label className="field-label">
+          제목
+          <input
+            ref={ref}
+            className="input mt-1"
+            placeholder="무엇을 할까요"
+            value={title}
+            enterKeyHint="done"
+            autoComplete="off"
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
+        <label className="field-label">
+          시간 (선택)
+          <div className="mt-1">
+            <TimeField value={time} onChange={setTime} optional ariaLabel="시작 시간 24시" />
+          </div>
+        </label>
+        {advanced ? (
+          <div className="flex flex-col gap-3">
+            <label className="field-label">
+              메모
+              <textarea
+                className="input mt-1"
+                placeholder="짧게"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </label>
+            <div>
+              <p className="field-label">영역</p>
+              <div className="chip-row">
+                {AREAS.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className="chip"
+                    data-on={area === a.id}
+                    onClick={() => setArea(a.id)}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="field-label">반복</p>
+              <div className="chip-row">
+                <button
+                  type="button"
+                  className="chip"
+                  data-on={repeat === "none"}
+                  onClick={() => setRepeat("none")}
+                >
+                  없음
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  data-on={repeat === "weekly"}
+                  onClick={() => setRepeat("weekly")}
+                >
+                  주간
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className="text-link px-0 self-start"
+          onClick={() => setAdvanced((v) => !v)}
+        >
+          {advanced ? "간단히" : "메모·영역·반복"}
+        </button>
+        <button type="submit" className="btn-primary">
+          {isEdit ? "저장" : submitLabel}
+        </button>
+      </>
+    );
+  };
 
   return (
     <div className="pt-2">
@@ -118,7 +243,14 @@ export function TodayTab() {
       ) : null}
 
       <div className="capsules">
-        <button type="button" className="capsule" onClick={openAdd}>
+        <button
+          type="button"
+          className="capsule"
+          onClick={() => {
+            if (plan.length === 0) emptyRef.current?.focus();
+            else quickRef.current?.focus();
+          }}
+        >
           <IconPlus className="nav-icon" /> 할 일
         </button>
         <button
@@ -141,49 +273,72 @@ export function TodayTab() {
 
       <p className="section-title">오늘 일정</p>
       {plan.length === 0 ? (
-        <EmptyState text="오늘 할 일이 없습니다." action="할 일 추가" onAction={openAdd} />
-      ) : (
-        <div className="card">
-          {plan.map((t) => (
-            <SwipeRow
-              key={t.id}
-              onDelete={() => {
-                if (t.virtual) return;
-                deleteTask(t.id);
-                flash("삭제됨");
-              }}
-            >
-              <div className="row">
-                <button
-                  type="button"
-                  className="hit"
-                  aria-label={t.done ? "완료 취소" : "완료"}
-                  onClick={() => toggleDone(t.id, selectedDate)}
-                >
-                  <span className={`check ${t.done ? "on" : ""}`}>{t.done ? "✓" : ""}</span>
-                </button>
-                <button
-                  type="button"
-                  className="flex-1 min-w-0 text-left"
-                  onClick={() => toggleDone(t.id, selectedDate)}
-                >
-                  <span className={`block text-[17px] ${t.done ? "line-through text-muted" : ""}`}>
-                    {t.title}
-                  </span>
-                  <span className="text-[13px] text-muted flex items-center gap-1.5 mt-0.5">
-                    <span className={`area-dot ${t.area}`} />
-                    {formatRange(t.minutes, endMinutesOf(t))} · {AREA_MAP[t.area].label}
-                  </span>
-                </button>
-                {!t.virtual ? (
-                  <button type="button" className="text-link" onClick={() => openEdit(t)}>
-                    수정
-                  </button>
-                ) : null}
-              </div>
-            </SwipeRow>
-          ))}
+        <div className="empty card">
+          <p>오늘 할 일이 없습니다.</p>
+          <form
+            className="empty-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveInline(emptyRef.current);
+            }}
+          >
+            {composerFields("empty")}
+          </form>
         </div>
+      ) : (
+        <>
+          <form
+            className="card p-3 flex flex-col gap-3 mb-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveInline(quickRef.current);
+            }}
+          >
+            {composerFields("quick")}
+          </form>
+          <div className="card">
+            {plan.map((t) => (
+              <SwipeRow
+                key={t.id}
+                onDelete={() => {
+                  if (t.virtual) return;
+                  deleteTask(t.id);
+                  flash("삭제됨");
+                }}
+              >
+                <div className="row">
+                  <button
+                    type="button"
+                    className="hit"
+                    aria-label={t.done ? "완료 취소" : "완료"}
+                    onClick={() => toggleDone(t.id, selectedDate)}
+                  >
+                    <span className={`check ${t.done ? "on" : ""}`}>{t.done ? "✓" : ""}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 min-w-0 text-left"
+                    onClick={() => toggleDone(t.id, selectedDate)}
+                  >
+                    <span className={`block text-[17px] ${t.done ? "line-through text-muted" : ""}`}>
+                      {t.title}
+                    </span>
+                    <span className="text-[13px] text-muted flex items-center gap-1.5 mt-0.5">
+                      <span className={`area-dot ${t.area}`} />
+                      {formatRange(t.minutes, endMinutesOf(t))} · {AREA_MAP[t.area].label}
+                      {t.recurring ? " · 주간" : ""}
+                    </span>
+                  </button>
+                  {!t.virtual ? (
+                    <button type="button" className="text-link" onClick={() => openEdit(t)}>
+                      수정
+                    </button>
+                  ) : null}
+                </div>
+              </SwipeRow>
+            ))}
+          </div>
+        </>
       )}
 
       <Sheet
@@ -202,24 +357,7 @@ export function TodayTab() {
             else saveAdd();
           }}
         >
-          <label className="field-label">
-            제목
-            <input
-              ref={titleRef}
-              className="input mt-1"
-              placeholder="무엇을 할까요"
-              value={title}
-              enterKeyHint="done"
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
-          <label className="field-label">
-            시간 (선택)
-            <input className="input mt-1" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-          </label>
-          <button type="submit" className="btn-primary">
-            저장
-          </button>
+          {composerFields("sheet")}
           {sheet === "edit" && editing && !editing.virtual ? (
             <DeleteConfirm
               onDelete={() => {

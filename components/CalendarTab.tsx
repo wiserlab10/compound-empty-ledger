@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconPlus } from "@/components/Icons";
 import { DeleteConfirm, EmptyState, Sheet, useFlash } from "@/components/Mobile";
+import { TimeField } from "@/components/TimeField";
 import {
   WEEKDAYS_KR,
   addDays,
@@ -191,6 +192,9 @@ export function CalendarTab() {
       <p className="section-title" style={{ marginTop: 4 }}>
         {formatKoreanDate(selectedDate)}
       </p>
+      <p className="text-[13px] text-muted px-1 mb-2">
+        날짜를 탭한 뒤 시작·끝 시간을 입력하세요. 드래그는 선택입니다.
+      </p>
 
       {pending.length > 0 ? (
         <div className="card mb-3">
@@ -254,25 +258,27 @@ export function CalendarTab() {
           <div className="grid grid-cols-2 gap-2">
             <label className="field-label">
               시작
-              <input
-                className="input mt-1"
-                type="time"
-                value={draft.start}
-                onChange={(e) => setDraft((d) => ({ ...d, start: e.target.value }))}
-              />
+              <div className="mt-1">
+                <TimeField
+                  value={draft.start}
+                  onChange={(start) => setDraft((d) => ({ ...d, start }))}
+                  ariaLabel="시작 24시"
+                />
+              </div>
             </label>
             <label className="field-label">
               끝
-              <input
-                className="input mt-1"
-                type="time"
-                value={draft.end}
-                onChange={(e) => setDraft((d) => ({ ...d, end: e.target.value }))}
-              />
+              <div className="mt-1">
+                <TimeField
+                  value={draft.end}
+                  onChange={(end) => setDraft((d) => ({ ...d, end }))}
+                  ariaLabel="끝 24시"
+                />
+              </div>
             </label>
           </div>
           <p className="text-[13px] text-muted">
-            {formatRange(range.start, range.end)} · {durationLabel(range.start, range.end)}
+            {formatRange(range.start, range.end)} · {durationLabel(range.start, range.end)} · 24시간
           </p>
           <button type="submit" className="btn-primary">
             저장
