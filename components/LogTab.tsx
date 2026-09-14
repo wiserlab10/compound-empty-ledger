@@ -44,6 +44,7 @@ export function LogTab() {
   const { flash, node } = useFlash();
   const nameRef = useRef<HTMLInputElement>(null);
   const kgRef = useRef<HTMLInputElement>(null);
+  const repsRef = useRef<HTMLInputElement>(null);
   const mealRef = useRef<HTMLInputElement>(null);
   const wtRef = useRef<HTMLInputElement>(null);
   const sleepRef = useRef<HTMLInputElement>(null);
@@ -120,13 +121,32 @@ export function LogTab() {
     URL.revokeObjectURL(url);
   }
 
+  function parseAmount(raw: string) {
+    const n = Number(String(raw).replace(/[^\d.]/g, ""));
+    return Number.isFinite(n) ? n : NaN;
+  }
+
   function saveSet() {
     const name = exName.trim();
     if (!name) {
       nameRef.current?.focus();
       return;
     }
-    logSet(name, date, Number(kg) || 0, Number(reps) || 0);
+    if (kg.trim() === "") {
+      kgRef.current?.focus();
+      return;
+    }
+    if (reps.trim() === "") {
+      repsRef.current?.focus();
+      return;
+    }
+    const nextKg = parseAmount(kg);
+    const nextReps = parseAmount(reps);
+    if (!Number.isFinite(nextKg) || !Number.isFinite(nextReps)) {
+      kgRef.current?.focus();
+      return;
+    }
+    logSet(name, date, nextKg, nextReps);
     setKg("");
     setReps("");
     flash("추가됨");
@@ -193,7 +213,7 @@ export function LogTab() {
               <input
                 ref={kgRef}
                 className="input mt-1"
-                placeholder="60"
+                placeholder="kg"
                 inputMode="decimal"
                 value={kg}
                 aria-label="kg"
@@ -203,8 +223,9 @@ export function LogTab() {
             <label className="field-label">
               횟수
               <input
+                ref={repsRef}
                 className="input mt-1"
-                placeholder="8"
+                placeholder="횟수"
                 inputMode="numeric"
                 value={reps}
                 aria-label="횟수"
@@ -770,7 +791,18 @@ function RepeatSet({ onAdd }: { onAdd: (kg: number, reps: number) => void }) {
         type="button"
         className="btn-primary"
         onClick={() => {
-          onAdd(Number(kg) || 0, Number(reps) || 0);
+          if (kg.trim() === "") {
+            kgRef.current?.focus();
+            return;
+          }
+          if (reps.trim() === "") return;
+          const nextKg = Number(String(kg).replace(/[^\d.]/g, ""));
+          const nextReps = Number(String(reps).replace(/[^\d.]/g, ""));
+          if (!Number.isFinite(nextKg) || !Number.isFinite(nextReps)) {
+            kgRef.current?.focus();
+            return;
+          }
+          onAdd(nextKg, nextReps);
           setKg("");
           setReps("");
           requestAnimationFrame(() => kgRef.current?.focus());
