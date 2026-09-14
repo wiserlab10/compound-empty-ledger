@@ -6,9 +6,20 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { useAuth } from "./auth";
 import { endMinutesOf, mondayIndex, uid } from "./dates";
+import {
+  fetchCloudLedger,
+  LOCAL_WRITTEN_KEY,
+  loadState,
+  localWrittenAt,
+  migrateState,
+  saveLocal,
+  upsertCloudLedger,
+} from "./ledger";
 import { createEmptyState } from "./seed";
 import type {
   AppState,
@@ -21,14 +32,7 @@ import type {
   WorkoutSet,
 } from "./types";
 
-export const STORAGE_KEY = "compound.ledger.v6";
-const PREV_KEYS = [
-  "compound.ledger.v1",
-  "compound.ledger.v2",
-  "compound.ledger.v3",
-  "compound.ledger.v4",
-  "compound.ledger.v5",
-] as const;
+export { STORAGE_KEY } from "./ledger";
 
 export interface PlannedTask extends DayTask {
   virtual?: boolean;
@@ -106,70 +110,22 @@ type StoreValue = {
   setNoteFor: (date: string, text: string) => void;
   resetLedger: () => void;
   exportJson: () => string;
+  syncStatus: "local" | "syncing" | "synced" | "error";
 };
 
 const StoreContext = createContext<StoreValue | null>(null);
 
-function withEnd(task: DayTask): DayTask {
-  return {
-    ...task,
-    endMinutes:
-      !task.pending && task.endMinutes && task.endMinutes > task.minutes
-        ? task.endMinutes
-        : task.pending
-          ? task.endMinutes || 0
-          : endMinutesOf(task),
-  };
-}
-
-function migrateState(parsed: {
-  version?: number;
-  tasks?: DayTask[];
-  recurring?: AppState["recurring"];
-  hiddenRecurring?: string[];
-  weeklyGoals?: AppState["weeklyGoals"];
-  projects?: AppState["projects"];
-  log?: AppState["log"];
-  recurDowEnabled?: boolean[];
-  seededDate?: string;
-}): AppState | null {
-  if (!parsed || !Array.isArray(parsed.tasks) || !parsed.log?.workouts) return null;
-  if (parsed.version !== 5 && parsed.version !== 6) return null;
-  const base = createEmptyState(parsed.seededDate);
-  return {
-    ...base,
-    ...parsed,
-    version: 6,
-    tasks: parsed.tasks.map(withEnd),
-    recurring: (parsed.recurring ?? []).map((rule) => ({
-      ...rule,
-      endMinutes: endMinutesOf(rule),
-    })),
-  };
-}
-
-function loadState(): AppState {
-  if (typeof window === "undefined") return createEmptyState();
-  try {
-    const raw =
-      window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem("compound.ledger.v5");
-    for (const key of PREV_KEYS) {
-      if (key !== "compound.ledger.v5") window.localStorage.removeItem(key);
-    }
-    if (!raw) return createEmptyState();
-    const next = migrateState(JSON.parse(raw) as AppState);
-    return next ?? createEmptyState();
-  } catch {
-    return createEmptyState();
-  }
-}
-
 export function CompoundProvider({ children }: { children: React.ReactNode }) {
+  const { user, ready: authReady } = useAuth();
   const empty = useMemo(() => createEmptyState(), []);
   const [state, setState] = useState<AppState>(empty);
   const [ready, setReady] = useState(false);
   const [tab, setTab] = useState<StoreValue["tab"]>("today");
   const [selectedDate, setSelectedDate] = useState(empty.seededDate);
+  const [syncStatus, setSyncStatus] = useState<StoreValue["syncStatus"]>("local");
+  const skipCloud = useRef(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     const loaded = loadState();
@@ -178,10 +134,68 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, []);
 
+  const persistTouch = useRef(false);
+
   useEffect(() => {
     if (!ready) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state, ready]);
+    saveLocal(state, persistTouch.current);
+    if (!user) persistTouch.current = true;
+  }, [state, ready, user]);
+
+  useEffect(() => {
+    if (!ready || !authReady || !user) {
+      if (!user) setSyncStatus("local");
+      return;
+    }
+    let cancelled = false;
+    skipCloud.current = true;
+    setSyncStatus("syncing");
+    fetchCloudLedger(user.id)
+      .then(async (row) => {
+        if (cancelled) return;
+        if (!row) {
+          await upsertCloudLedger(user.id, stateRef.current);
+          if (!cancelled) setSyncStatus("synced");
+          return;
+        }
+        const cloudTime = Date.parse(row.updated_at);
+        if (Number.isFinite(cloudTime) && cloudTime > localWrittenAt()) {
+          const next = migrateState(row.payload);
+          if (next) {
+            setState(next);
+            setSelectedDate(next.seededDate);
+            saveLocal(next, false);
+            window.localStorage.setItem(LOCAL_WRITTEN_KEY, row.updated_at);
+          }
+        } else {
+          await upsertCloudLedger(user.id, stateRef.current);
+        }
+        if (!cancelled) setSyncStatus("synced");
+      })
+      .catch(() => {
+        if (!cancelled) setSyncStatus("error");
+      })
+      .finally(() => {
+        persistTouch.current = true;
+        window.setTimeout(() => {
+          skipCloud.current = false;
+        }, 400);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, authReady, user]);
+
+  useEffect(() => {
+    if (!ready || !user || skipCloud.current) return;
+    setSyncStatus("syncing");
+    const t = window.setTimeout(() => {
+      upsertCloudLedger(user.id, state)
+        .then(() => setSyncStatus("synced"))
+        .catch(() => setSyncStatus("error"));
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [state, ready, user]);
 
   const planFor = useCallback(
     (date: string, area: AreaId | "all" = "all"): PlannedTask[] => {
@@ -896,6 +910,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
       setNoteFor,
       resetLedger,
       exportJson,
+      syncStatus,
     }),
     [
       ready,
@@ -951,6 +966,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
       setNoteFor,
       resetLedger,
       exportJson,
+      syncStatus,
     ],
   );
 
