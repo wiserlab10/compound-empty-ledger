@@ -242,36 +242,36 @@ export function TodayTab() {
         </button>
       ) : null}
 
-      <div className="capsules">
+      <div className="jump-row">
         <button
           type="button"
-          className="capsule"
+          className="jump-link"
           onClick={() => {
             if (plan.length === 0) emptyRef.current?.focus();
             else quickRef.current?.focus();
           }}
         >
-          <IconPlus className="nav-icon" /> 할 일
+          <IconPlus className="jump-icon" /> 할 일
         </button>
         <button
           type="button"
-          className="capsule"
+          className="jump-link"
           onClick={() => {
             setSelectedDate(today);
             setTab("calendar");
           }}
         >
-          <IconPlus className="nav-icon" /> 일정
+          캘린더
         </button>
-        <button type="button" className="capsule" onClick={() => setTab("log")}>
-          <IconPlus className="nav-icon" /> 운동
+        <button type="button" className="jump-link" onClick={() => setTab("projects")}>
+          프로젝트
         </button>
-        <button type="button" className="capsule" onClick={() => setTab("projects")}>
-          <IconPlus className="nav-icon" /> 프로젝트
+        <button type="button" className="jump-link" onClick={() => setTab("log")}>
+          기록
         </button>
       </div>
 
-      <p className="section-title">오늘 일정</p>
+      <p className="section-title">오늘</p>
       {plan.length === 0 ? (
         <div className="empty card">
           <p>오늘 할 일이 없습니다.</p>

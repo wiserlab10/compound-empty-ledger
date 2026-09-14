@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { IconChevron } from "@/components/Icons";
 import { EmptyState, useFlash } from "@/components/Mobile";
 import { useCompound } from "@/lib/store";
 import type { TrackId } from "@/lib/types";
@@ -106,13 +107,16 @@ export function ProjectsTab() {
                 <div className="row">
                   <button
                     type="button"
-                    className="flex-1 min-w-0 text-left"
+                    className="flex-1 min-w-0 text-left flex items-center gap-2"
                     onClick={() => setOpenId((cur) => (cur === p.id ? "" : p.id))}
                   >
-                    <span className="block text-[17px]">{p.label}</span>
-                    <span className="block text-[13px] text-muted">
-                      {done}/{total} · {pct}%
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[17px]">{p.label}</span>
+                      <span className="block text-[13px] text-muted">
+                        {done}/{total} · {pct}%
+                      </span>
                     </span>
+                    <IconChevron />
                   </button>
                   <button type="button" className="text-link" onClick={() => startAdd(p.id)}>
                     작업

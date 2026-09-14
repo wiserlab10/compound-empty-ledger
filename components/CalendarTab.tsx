@@ -180,10 +180,8 @@ export function CalendarTab() {
           const on = iso === selectedDate;
           return (
             <button key={iso} type="button" className="week-cell" data-on={on} onClick={() => setSelectedDate(iso)}>
-              <div className="text-[11px] font-semibold" style={{ opacity: 0.7 }}>
-                {WEEKDAYS_KR[i]}
-              </div>
-              <div className="text-[17px] font-semibold">{parseISODate(iso).getDate()}</div>
+              <div className="week-dow">{WEEKDAYS_KR[i]}</div>
+              <div className="week-num">{parseISODate(iso).getDate()}</div>
             </button>
           );
         })}

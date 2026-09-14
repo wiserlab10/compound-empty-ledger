@@ -28,7 +28,7 @@ export function BottomNav({
           aria-current={tab === t.id ? "page" : undefined}
           onClick={() => onChange(t.id)}
         >
-          <t.Icon />
+          <t.Icon filled={tab === t.id} />
           <span className="nav-name">{t.name}</span>
         </button>
       ))}
