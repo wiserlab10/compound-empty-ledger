@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from "react";
-import { useFlash } from "@/components/Mobile";
+import { EmptyState, useFlash } from "@/components/Mobile";
 import { addDays, todayISO } from "@/lib/dates";
 import { useCompound } from "@/lib/store";
 import {
@@ -43,6 +43,11 @@ export function LogTab() {
   } = useCompound();
   const { flash, node } = useFlash();
   const nameRef = useRef<HTMLInputElement>(null);
+  const kgRef = useRef<HTMLInputElement>(null);
+  const mealRef = useRef<HTMLInputElement>(null);
+  const wtRef = useRef<HTMLInputElement>(null);
+  const sleepRef = useRef<HTMLInputElement>(null);
+  const bookRef = useRef<HTMLInputElement>(null);
 
   const date = selectedDate || todayISO();
   const log = state.log;
@@ -125,6 +130,7 @@ export function LogTab() {
     setKg("");
     setReps("");
     flash("추가됨");
+    requestAnimationFrame(() => kgRef.current?.focus());
   }
 
   const proteinLeft = log.proteinTarget > 0 ? log.proteinTarget - protein : null;
@@ -162,7 +168,7 @@ export function LogTab() {
         <div className="flex items-end justify-between mb-2">
           <p className="section-title" style={{ marginTop: 8 }}>운동</p>
           <p className="text-[13px] text-muted">
-            {dayWorkouts.length === 0 ? "—" : `Σ ${formatVolume(sessVol)}`}
+            {dayWorkouts.length === 0 ? "—" : `합계 ${formatVolume(sessVol)}`}
           </p>
         </div>
 
@@ -181,42 +187,58 @@ export function LogTab() {
             enterKeyHint="next"
             onChange={(e) => setExName(e.target.value)}
           />
-          <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-            <input
-              className="input"
-              placeholder="kg"
-              inputMode="decimal"
-              value={kg}
-              aria-label="kg"
-              onChange={(e) => setKg(e.target.value)}
-            />
-            <input
-              className="input"
-              placeholder="회"
-              inputMode="numeric"
-              value={reps}
-              aria-label="회"
-              onChange={(e) => setReps(e.target.value)}
-            />
-            <button type="submit" className="btn-primary" style={{ width: "auto", minWidth: 72 }}>
-              추가
-            </button>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="field-label">
+              kg
+              <input
+                ref={kgRef}
+                className="input mt-1"
+                placeholder="60"
+                inputMode="decimal"
+                value={kg}
+                aria-label="kg"
+                onChange={(e) => setKg(e.target.value)}
+              />
+            </label>
+            <label className="field-label">
+              횟수
+              <input
+                className="input mt-1"
+                placeholder="8"
+                inputMode="numeric"
+                value={reps}
+                aria-label="횟수"
+                onChange={(e) => setReps(e.target.value)}
+              />
+            </label>
           </div>
+          <button type="submit" className="btn-primary">
+            세트 추가
+          </button>
           {exName.trim() && hintEx ? (
             <p className="text-[13px] text-muted">
               지난번 {hintEx.date}
-              {hintTop ? ` · ${hintTop.kg}kg × ${hintTop.reps}` : ""} · 최소 Σ
+              {hintTop ? ` · ${hintTop.kg}kg × ${hintTop.reps}회` : ""} · 최소 합계{" "}
               {formatVolume(exerciseVolume(hintEx.sets))}
             </p>
           ) : exName.trim() ? (
             <p className="text-[13px] text-muted">이 동작의 첫 기록입니다.</p>
           ) : (
-            <p className="text-[13px] text-muted">동작·kg·회를 한 번에 넣습니다.</p>
+            <p className="text-[13px] text-muted">동작·kg·횟수를 한 번에 넣습니다.</p>
           )}
         </form>
 
         {dayWorkouts.length === 0 ? (
-          <p className="text-muted text-[13px] mt-2 px-1">오늘 세트가 없습니다.</p>
+          <div className="mt-2">
+            <EmptyState
+              text="오늘 세트가 없습니다."
+              action="세트 추가"
+              onAction={() => {
+                if (!exName.trim()) nameRef.current?.focus();
+                else kgRef.current?.focus();
+              }}
+            />
+          </div>
         ) : null}
 
         {dayWorkouts.map((ex) => {
@@ -242,7 +264,7 @@ export function LogTab() {
                 </button>
               </div>
               {ex.sets.map((s, i) => (
-                <div key={s.id} className="grid grid-cols-[28px_1fr_1fr_auto_44px] gap-1 items-center mt-2">
+                <div key={s.id} className="set-row">
                   <span className="text-[13px] text-muted">{i + 1}</span>
                   <input
                     className="input"
@@ -255,11 +277,16 @@ export function LogTab() {
                     className="input"
                     inputMode="numeric"
                     value={s.reps}
-                    aria-label={`${ex.name} ${i + 1}세트 회`}
+                    aria-label={`${ex.name} ${i + 1}세트 횟수`}
                     onChange={(e) => updateSet(ex.id, s.id, { reps: Number(e.target.value) || 0 })}
                   />
                   <span className="text-[13px] text-muted">{formatVolume(setVolume(s))}</span>
-                  <button type="button" className="btn-icon" onClick={() => deleteSet(ex.id, s.id)}>
+                  <button
+                    type="button"
+                    className="btn-icon"
+                    aria-label="세트 삭제"
+                    onClick={() => deleteSet(ex.id, s.id)}
+                  >
                     ×
                   </button>
                 </div>
@@ -271,8 +298,8 @@ export function LogTab() {
                 }}
               />
               <p className="text-[13px] text-muted mt-2">
-                오늘 Σ {formatVolume(vol)}
-                {last ? ` · 지난번 ${lastVol >= 0 ? (vol - lastVol >= 0 ? "+" : "") : ""}${formatVolume(vol - lastVol)}` : ""}
+                오늘 합계 {formatVolume(vol)}
+                {last ? ` · 지난번 ${vol - lastVol >= 0 ? "+" : ""}${formatVolume(vol - lastVol)}` : ""}
               </p>
               {history.length > 0 ? (
                 <div className="mt-2">
@@ -280,8 +307,8 @@ export function LogTab() {
                     const hTop = topSet(h.sets);
                     return (
                       <p key={h.id} className="text-[12px] text-muted">
-                        {h.date} · {h.sets.length}세트 · Σ{formatVolume(exerciseVolume(h.sets))}
-                        {hTop ? ` · ${hTop.kg}×${hTop.reps}` : ""}
+                        {h.date} · {h.sets.length}세트 · 합계 {formatVolume(exerciseVolume(h.sets))}
+                        {hTop ? ` · ${hTop.kg}kg × ${hTop.reps}회` : ""}
                       </p>
                     );
                   })}
@@ -296,7 +323,12 @@ export function LogTab() {
         <p className="section-title">식사</p>
         <div className="card p-3 flex flex-col gap-3">
           {meals.length === 0 && protein === 0 && kcal === 0 ? (
-            <p className="text-[13px] text-muted">식사 기록이 없습니다.</p>
+            <div className="empty" style={{ padding: "8px 0 12px" }}>
+              <p>식사 기록이 없습니다.</p>
+              <button type="button" className="btn-primary" onClick={() => mealRef.current?.focus()}>
+                식사 추가
+              </button>
+            </div>
           ) : null}
           <div className="grid grid-cols-2 gap-2">
             <label className="field-label">
@@ -371,13 +403,14 @@ export function LogTab() {
                 onChange={(e) => updateMeal(m.id, { kcal: Number(e.target.value) || 0 })}
                 aria-label="칼로리"
               />
-              <button type="button" className="btn-icon" onClick={() => deleteMeal(m.id)}>
+              <button type="button" className="btn-icon" aria-label="식사 삭제" onClick={() => deleteMeal(m.id)}>
                 ×
               </button>
             </div>
           ))}
           <div className="grid grid-cols-[1fr_56px_64px_auto] gap-1">
             <input
+              ref={mealRef}
               className="input"
               placeholder="식사"
               value={mealLabel}
@@ -442,7 +475,12 @@ export function LogTab() {
             </button>
           </div>
           {weights.length === 0 ? (
-            <p className="text-muted text-[13px]">체중 기록이 없습니다.</p>
+            <div className="empty" style={{ padding: "8px 0 12px" }}>
+              <p>체중 기록이 없습니다.</p>
+              <button type="button" className="btn-primary" onClick={() => wtRef.current?.focus()}>
+                체중 기록
+              </button>
+            </div>
           ) : (
             <>
               <div className="flex items-end justify-between">
@@ -468,7 +506,12 @@ export function LogTab() {
                   <div key={w.id} className="flex text-[13px] mt-1 items-center">
                     <span className="flex-1 text-muted">{w.date}</span>
                     <span>{w.kg.toFixed(1)}kg</span>
-                    <button type="button" className="btn-icon ml-2" onClick={() => deleteWeight(w.id)}>
+                    <button
+                      type="button"
+                      className="btn-icon ml-2"
+                      aria-label="체중 삭제"
+                      onClick={() => deleteWeight(w.id)}
+                    >
                       ×
                     </button>
                   </div>
@@ -477,6 +520,7 @@ export function LogTab() {
           )}
           <div className="flex gap-2 mt-2">
             <input
+              ref={wtRef}
               className="input"
               placeholder="오늘 kg"
               inputMode="decimal"
@@ -504,7 +548,12 @@ export function LogTab() {
         <p className="section-title">수면</p>
         <div className="card p-3">
           {!sleep ? (
-            <p className="text-muted text-[13px] mb-2">오늘 수면 기록이 없습니다.</p>
+            <div className="empty" style={{ padding: "8px 0 12px" }}>
+              <p>오늘 수면 기록이 없습니다.</p>
+              <button type="button" className="btn-primary" onClick={() => sleepRef.current?.focus()}>
+                수면 기록
+              </button>
+            </div>
           ) : (
             <div className="flex items-end justify-between">
               <p className="large-title">{sleep.hours.toFixed(1)}h</p>
@@ -523,6 +572,7 @@ export function LogTab() {
           <label className="field-label mt-3">
             시간
             <input
+              ref={sleepRef}
               className="input mt-1"
               inputMode="decimal"
               placeholder="시간"
@@ -581,6 +631,7 @@ export function LogTab() {
         <div className="card p-3">
           <div className="grid grid-cols-2 gap-2">
             <input
+              ref={bookRef}
               className="input"
               placeholder="책 제목"
               value={book}
@@ -604,6 +655,14 @@ export function LogTab() {
           >
             책 저장
           </button>
+          {pagesToday === 0 && pagesTotal === 0 ? (
+            <div className="empty" style={{ padding: "12px 0 8px" }}>
+              <p>독서 기록이 없습니다.</p>
+              <button type="button" className="btn-primary" onClick={() => bookRef.current?.focus()}>
+                책 기록
+              </button>
+            </div>
+          ) : null}
           <p className="large-title mt-3">{pagesToday}p</p>
           <p className="text-muted text-[12px]">
             오늘 {pagesToday}p · 누적 {pagesTotal}p
@@ -648,7 +707,12 @@ export function LogTab() {
                 <div key={d.date} className="flex text-[13px] items-center">
                   <span className="flex-1 text-muted">{d.date}</span>
                   <span>{d.pages}p</span>
-                  <button type="button" className="btn-icon ml-2" onClick={() => deleteReadingDay(d.date)}>
+                  <button
+                    type="button"
+                    className="btn-icon ml-2"
+                    aria-label="독서 삭제"
+                    onClick={() => deleteReadingDay(d.date)}
+                  >
                     ×
                   </button>
                 </div>
@@ -674,32 +738,45 @@ export function LogTab() {
 function RepeatSet({ onAdd }: { onAdd: (kg: number, reps: number) => void }) {
   const [kg, setKg] = useState("");
   const [reps, setReps] = useState("");
+  const kgRef = useRef<HTMLInputElement>(null);
   return (
-    <div className="grid grid-cols-[1fr_1fr_auto] gap-1 mt-2">
-      <input
-        className="input"
-        placeholder="kg"
-        inputMode="decimal"
-        value={kg}
-        onChange={(e) => setKg(e.target.value)}
-        aria-label="추가 kg"
-      />
-      <input
-        className="input"
-        placeholder="회"
-        inputMode="numeric"
-        value={reps}
-        onChange={(e) => setReps(e.target.value)}
-        aria-label="추가 회"
-      />
+    <div className="flex flex-col gap-2 mt-3">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="field-label">
+          kg
+          <input
+            ref={kgRef}
+            className="input mt-1"
+            placeholder="kg"
+            inputMode="decimal"
+            value={kg}
+            onChange={(e) => setKg(e.target.value)}
+            aria-label="추가 kg"
+          />
+        </label>
+        <label className="field-label">
+          횟수
+          <input
+            className="input mt-1"
+            placeholder="횟수"
+            inputMode="numeric"
+            value={reps}
+            onChange={(e) => setReps(e.target.value)}
+            aria-label="추가 횟수"
+          />
+        </label>
+      </div>
       <button
         type="button"
-        className="btn-secondary"
+        className="btn-primary"
         onClick={() => {
           onAdd(Number(kg) || 0, Number(reps) || 0);
+          setKg("");
+          setReps("");
+          requestAnimationFrame(() => kgRef.current?.focus());
         }}
       >
-        세트
+        세트 추가
       </button>
     </div>
   );
