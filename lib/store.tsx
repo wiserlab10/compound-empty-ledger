@@ -77,6 +77,7 @@ type StoreValue = {
   addSubproject: (trackId: TrackId, title: string) => void;
   renameSubproject: (trackId: TrackId, subId: string, title: string) => void;
   addProjectTask: (trackId: TrackId, subId: string, title: string, due?: string) => void;
+  addTrackTask: (trackId: TrackId, title: string, due?: string) => void;
   setProjectTaskDue: (trackId: TrackId, subId: string, taskId: string, due: string) => void;
   addTrack: (label: string) => void;
   renameTrack: (trackId: TrackId, label: string) => void;
@@ -84,6 +85,7 @@ type StoreValue = {
   deleteSubproject: (trackId: TrackId, subId: string) => void;
   deleteProjectTask: (trackId: TrackId, subId: string, taskId: string) => void;
   addExercise: (name: string, date: string) => void;
+  logSet: (name: string, date: string, kg: number, reps: number) => void;
   deleteExercise: (id: string) => void;
   addSet: (exerciseId: string, kg: number, reps: number) => void;
   updateSet: (exerciseId: string, setId: string, patch: Partial<WorkoutSet>) => void;
@@ -552,6 +554,28 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const addTrackTask = useCallback((trackId: TrackId, title: string, due?: string) => {
+    setState((prev) =>
+      mapTrack(prev, trackId, (tr) => {
+        const subs = tr.subprojects.length
+          ? tr.subprojects
+          : [{ id: uid("sp"), title: "작업", tasks: [] }];
+        const targetId = subs[0].id;
+        return {
+          ...tr,
+          subprojects: subs.map((sp) =>
+            sp.id === targetId
+              ? {
+                  ...sp,
+                  tasks: [...sp.tasks, { id: uid("pt"), title, done: false, due: due || undefined }],
+                }
+              : sp,
+          ),
+        };
+      }),
+    );
+  }, []);
+
   const setProjectTaskDue = useCallback(
     (trackId: TrackId, subId: string, taskId: string, due: string) => {
       setState((prev) =>
@@ -617,6 +641,35 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
         workouts: [...prev.log.workouts, { id: uid("ex"), name, date, sets: [] }],
       },
     }));
+  }, []);
+
+  const logSet = useCallback((name: string, date: string, kg: number, reps: number) => {
+    setState((prev) => {
+      const key = name.trim();
+      if (!key) return prev;
+      const existing = prev.log.workouts.find(
+        (w) => w.date === date && w.name.trim().toLowerCase() === key.toLowerCase(),
+      );
+      const nextSet = { id: uid("s"), kg, reps };
+      if (existing) {
+        return {
+          ...prev,
+          log: {
+            ...prev.log,
+            workouts: prev.log.workouts.map((w) =>
+              w.id === existing.id ? { ...w, sets: [...w.sets, nextSet] } : w,
+            ),
+          },
+        };
+      }
+      return {
+        ...prev,
+        log: {
+          ...prev.log,
+          workouts: [...prev.log.workouts, { id: uid("ex"), name: key, date, sets: [nextSet] }],
+        },
+      };
+    });
   }, []);
 
   const deleteExercise = useCallback((id: string) => {
@@ -812,6 +865,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
       addSubproject,
       renameSubproject,
       addProjectTask,
+      addTrackTask,
       setProjectTaskDue,
       addTrack,
       renameTrack,
@@ -819,6 +873,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
       deleteSubproject,
       deleteProjectTask,
       addExercise,
+      logSet,
       deleteExercise,
       addSet,
       updateSet,
@@ -865,6 +920,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
       addSubproject,
       renameSubproject,
       addProjectTask,
+      addTrackTask,
       setProjectTaskDue,
       addTrack,
       renameTrack,
@@ -872,6 +928,7 @@ export function CompoundProvider({ children }: { children: React.ReactNode }) {
       deleteSubproject,
       deleteProjectTask,
       addExercise,
+      logSet,
       deleteExercise,
       addSet,
       updateSet,
