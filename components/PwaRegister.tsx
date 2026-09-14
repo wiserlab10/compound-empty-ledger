@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 
@@ -54,7 +54,7 @@ export function PwaRegister() {
   return (
     <div className="install-bar" role="region" aria-label="홈 화면 설치">
       <div className="min-w-0">
-        <p className="section-label">Install</p>
+        <p className="text-[13px] font-medium">홈 화면에 추가</p>
         <p className="text-[12px] leading-snug mt-0.5">
           {deferred
             ? "Android Chrome에서 홈 화면에 추가합니다."
